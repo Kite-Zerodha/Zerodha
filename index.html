@@ -3,63 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Trading App</title>
+  <title>Kite App</title>
   
+  <!-- URL Bar छुपाने वाले PWA टैग्स -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="manifest.json"> <style>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
     body, html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      width: 100%;
+      margin: 0; padding: 0; height: 100%; width: 100%;
       background-color: #000;
-      overflow: hidden; /* Scroll disable karne ke liye */
-      overscroll-behavior-y: none; /* Native browser refresh rokne ke liye */
-      font-family: sans-serif;
+      overflow: hidden; /* वेबपेज वाला स्क्रॉल बंद */
+      overscroll-behavior-y: none; /* क्रोम का डिफ़ॉल्ट रिफ्रेश बंद */
+      user-select: none; /* टेक्स्ट सेलेक्ट होने से रोके */
     }
 
-    .app-container {
-      position: relative;
-      height: 100%;
-      width: 100%;
-      /* Yahan apni image ka naam daalna */
+    /* 1. मेन बैकग्राउंड (पूरा स्क्रीनशॉट) */
+    .main-bg {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background-image: url('screenshot.jpg'); 
-      background-size: cover;
-      background-position: top center;
-      background-repeat: no-repeat;
+      background-size: 100% 100%; /* स्क्रीन पर परफेक्ट फिट के लिए */
+      background-position: top center; background-repeat: no-repeat;
+      z-index: 1;
     }
 
-    /* Video jaisa White & Blue Pull to Refresh Spinner */
+    /* 2. नकली हेडर (ताकि स्पिनर इसके पीछे से निकले) */
+    .fake-header {
+      position: absolute; top: 0; left: 0; width: 100%; 
+      height: 125px; /* ये Nifty 50 वाले हिस्से की लम्बाई है */
+      background-image: url('screenshot.jpg');
+      background-size: 100% 100vh; /* बैकग्राउंड के साथ एकदम मैच करने के लिए */
+      background-position: top left; background-repeat: no-repeat;
+      z-index: 10; /* सबसे ऊपर रहेगा */
+    }
+
+    /* 3. रिफ्रेश स्पिनर (नकली हेडर के पीछे छुपा है) */
     .spinner-container {
       position: absolute;
-      top: -60px; /* Initially chupa hua */
+      top: 90px; /* हेडर के पीछे की जगह */
       left: 50%;
-      transform: translateX(-50%);
-      width: 42px;
-      height: 42px;
+      transform: translateX(-50%) translateY(0);
+      width: 38px; height: 38px;
       background: #fff;
       border-radius: 50%;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      transition: top 0.2s ease-out;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 5; /* मेन बैकग्राउंड के ऊपर, हेडर के नीचे */
+      transition: transform 0.3s ease-out; /* वापस जाने की स्पीड */
     }
 
+    /* जब उंगली से खींच रहे हों, तो ट्रांजीशन बंद (तुरंत रिस्पांस के लिए) */
+    .spinner-container.dragging {
+      transition: none; 
+    }
+
+    /* अंदर का नीला एरो */
     .spinner {
-      width: 24px;
-      height: 24px;
-      border: 3px solid transparent;
-      border-top-color: #1a73e8; /* Blue arrow color */
-      border-left-color: #1a73e8;
+      width: 20px; height: 20px;
+      border: 2.5px solid transparent;
+      border-top-color: #4184f3; /* Kite वाला नीला रंग */
+      border-left-color: #4184f3;
       border-radius: 50%;
     }
 
-    .refreshing .spinner {
-      animation: spin 1s linear infinite;
+    /* गोल घूमने वाला एनीमेशन */
+    .spinning .spinner {
+      animation: spin 0.8s linear infinite;
     }
 
     @keyframes spin {
@@ -70,60 +81,78 @@
 </head>
 <body>
 
-  <div class="spinner-container" id="refresh-spinner">
-    <div class="spinner" id="spinner-icon"></div>
+  <!-- मेन स्क्रीन -->
+  <div class="main-bg"></div>
+  
+  <!-- रिफ्रेश वाला बटन -->
+  <div class="spinner-container" id="spinner-container">
+    <div class="spinner" id="spinner-arrow"></div>
   </div>
 
-  <div class="app-container"></div>
+  <!-- ऊपर का फिक्स्ड हेडर -->
+  <div class="fake-header"></div>
 
   <script>
-    const spinnerContainer = document.getElementById('refresh-spinner');
-    const spinnerIcon = document.getElementById('spinner-icon');
+    const spinnerContainer = document.getElementById('spinner-container');
+    const spinnerArrow = document.getElementById('spinner-arrow');
+    
     let startY = 0;
     let currentY = 0;
     let isRefreshing = false;
+    
+    const maxPull = 120; // उंगली से कितना नीचे तक खींचा जा सकता है
+    const triggerPoint = 65; // कितना खींचने पर रिफ्रेश चालू हो जाएगा
 
-    // Jab screen touch ho
     document.addEventListener('touchstart', (e) => {
-      if (!isRefreshing) startY = e.touches[0].clientY;
-    }, { passive: true });
+      if (isRefreshing) return;
+      startY = e.touches[0].clientY;
+    }, { passive: false });
 
-    // Jab screen par neeche swipe karein
     document.addEventListener('touchmove', (e) => {
-      if (!isRefreshing && startY > 0) {
-        currentY = e.touches[0].clientY;
-        let distance = currentY - startY;
+      if (isRefreshing) return;
+      currentY = e.touches[0].clientY;
+      let distance = currentY - startY;
 
-        if (distance > 0) {
-          let moveDown = Math.min(distance * 0.4, 70); // Upar se neeche aane ka effect
-          spinnerContainer.style.top = (moveDown - 40) + 'px';
-          spinnerIcon.style.transform = `rotate(${distance}deg)`; // Ghoomne ka effect
-        }
+      // अगर नीचे की तरफ स्वाइप कर रहे हैं
+      if (distance > 0) {
+        e.preventDefault(); // वेबपेज को हिलने से रोकेगा
+        spinnerContainer.classList.add('dragging');
+        
+        // खींचने में थोड़ा 'रबर-बैंड' (वजन) जैसा फील देने के लिए 0.4 से गुणा किया है
+        let pullDistance = Math.min(distance * 0.4, maxPull);
+        
+        // बटन को नीचे खिसकाओ
+        spinnerContainer.style.transform = `translateX(-50%) translateY(${pullDistance}px)`;
+        // उंगली के हिसाब से एरो को घुमाओ
+        spinnerArrow.style.transform = `rotate(${distance * 1.2}deg)`;
       }
-    }, { passive: true });
+    }, { passive: false });
 
-    // Jab touch chhod dein
     document.addEventListener('touchend', (e) => {
-      if (!isRefreshing && startY > 0) {
-        let distance = currentY - startY;
+      if (isRefreshing || startY === 0) return;
+      
+      let distance = currentY - startY;
+      spinnerContainer.classList.remove('dragging');
 
-        if (distance > 90) { // Agar theek se neeche pull kiya hai
-          isRefreshing = true;
-          spinnerContainer.style.top = '25px'; // Animation hold karo
-          spinnerContainer.classList.add('refreshing');
+      // अगर बटन को triggerPoint (65px) से ज्यादा खींचा गया है
+      if (distance * 0.4 > triggerPoint) {
+        isRefreshing = true;
+        
+        // बटन को बीच में रोक कर घूमने वाला एनीमेशन चालू कर दो
+        spinnerContainer.style.transform = `translateX(-50%) translateY(${triggerPoint}px)`;
+        spinnerContainer.classList.add('spinning');
 
-          // 2 second animation chalao fir wapas upar bhej do
-          setTimeout(() => {
-            spinnerContainer.classList.remove('refreshing');
-            spinnerContainer.style.top = '-60px';
-            isRefreshing = false;
-            startY = 0;
-          }, 2000);
-        } else {
-          // Agar poora pull nahi kiya, toh wapas upar chhupa do
-          spinnerContainer.style.top = '-60px';
+        // 1.5 सेकंड तक रिफ्रेश चलेगा, फिर छुप जाएगा
+        setTimeout(() => {
+          spinnerContainer.classList.remove('spinning');
+          spinnerContainer.style.transform = `translateX(-50%) translateY(0)`;
+          isRefreshing = false;
           startY = 0;
-        }
+        }, 1500); 
+      } else {
+        // अगर थोड़ा सा खींच कर छोड़ दिया, तो तुरंत वापस ऊपर छुपा दो
+        spinnerContainer.style.transform = `translateX(-50%) translateY(0)`;
+        startY = 0;
       }
     });
   </script>
