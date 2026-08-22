@@ -3,94 +3,73 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Kite App</title>
+  <title>Kite</title>
+  <link rel="manifest" href="manifest.json">
 
   <style>
-    :root {
-      /* Search बार के नीचे का कट */
-      --split-point: 225px; 
-    }
-
     body, html {
       margin: 0; padding: 0; height: 100%; width: 100%;
-      background-color: #13171a; 
+      background-color: #13171a; /* Kite Dark Theme */
       overflow: hidden;
       overscroll-behavior-y: none;
       user-select: none;
       touch-action: none; 
     }
 
-    .fixed-header {
-      position: absolute; top: 0; left: 0; width: 100%;
-      height: var(--split-point);
+    /* पीछे का पूरा स्क्रीनशॉट जो अपनी जगह फिक्स रहेगा */
+    .app-background {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background-image: url('screenshot.jpg'); 
       background-size: 100vw 100vh;
       background-position: top center; 
       background-repeat: no-repeat;
-      z-index: 10;
+      z-index: 1;
     }
 
-    .moving-body {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100vh;
-      background-image: url('screenshot.jpg'); 
-      background-size: 100vw 100vh;
-      background-position: top center; 
-      background-repeat: no-repeat;
-      z-index: 5;
-      clip-path: inset(var(--split-point) 0 0 0); 
-      transition: transform 0.2s ease-out;
-    }
-
-    .moving-body.dragging {
-      transition: none;
-    }
-
-    /* डार्क बैकग्राउंड और रिफ्रेश स्पिनर */
-    .spinner-gap {
+    /* रिफ्रेश स्पिनर रखने की जगह (Holdings टैब के नीचे - 130px) */
+    .spinner-container {
       position: absolute;
-      top: var(--split-point);
+      top: 130px; 
       left: 0; width: 100%;
-      height: 0px; 
       display: flex; align-items: center; justify-content: center;
-      background-color: #13171a;
-      z-index: 1; 
-      overflow: hidden;
+      z-index: 10; 
+      pointer-events: none; /* ताकि नीचे के बटन दब सकें */
     }
 
-    /* Android वाला पतला नीला तीर */
+    /* खुला हुआ मोटा नीला तीर (बिना किसी डिब्बे के) */
     .svg-icon {
-      width: 24px; height: 24px;
-      stroke: #4184f3; 
-      transform: rotate(0deg);
-      opacity: 0;
-      transition: opacity 0.2s;
+      width: 26px; height: 26px;
+      stroke: #4184f3; /* Kite Blue */
+      opacity: 0; /* शुरू में छुपा रहेगा */
+      transform: translateY(0px) rotate(0deg);
     }
 
+    /* गोल घूमने का एनीमेशन */
     .spinning .svg-icon {
       animation: spin 0.8s linear infinite;
     }
 
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% { transform: translateY(30px) rotate(0deg); }
+      100% { transform: translateY(30px) rotate(360deg); }
     }
   </style>
 </head>
 <body>
 
-  <div class="spinner-gap" id="spinner-gap">
-    <svg class="svg-icon" id="spinner-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- मेन स्क्रीनशॉट -->
+  <div class="app-background"></div>
+
+  <!-- रिफ्रेश वाला तीर -->
+  <div class="spinner-container" id="spinner-container">
+    <svg class="svg-icon" id="spinner-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
       <path d="M21 3v5h-5"></path>
     </svg>
   </div>
 
-  <div class="moving-body" id="moving-body"></div>
-  <div class="fixed-header"></div>
-
   <script>
-    const movingBody = document.getElementById('moving-body');
-    const spinnerGap = document.getElementById('spinner-gap');
+    const spinnerContainer = document.getElementById('spinner-container');
     const spinnerArrow = document.getElementById('spinner-arrow');
     
     let startY = 0;
@@ -106,45 +85,55 @@
       currentY = e.touches[0].clientY;
       let distance = currentY - startY;
 
+      // अगर नीचे की तरफ खींच रहे हैं
       if (distance > 0) {
         e.preventDefault();
-        movingBody.classList.add('dragging');
-        let pullDistance = Math.min(distance * 0.45, 100);
         
-        movingBody.style.transform = `translateY(${pullDistance}px)`;
-        spinnerGap.style.height = `${pullDistance}px`;
-        spinnerArrow.style.opacity = 1;
-        spinnerArrow.style.transform = `rotate(${distance * 1.5}deg)`;
+        // तीर थोड़ा नीचे खिसकेगा (Max 30px)
+        let pullDistance = Math.min(distance * 0.3, 30); 
+        
+        // उंगली के हिसाब से तीर दिखेगा और घूमेगा
+        spinnerArrow.style.opacity = Math.min(distance / 60, 1);
+        spinnerArrow.style.transform = `translateY(${pullDistance}px) rotate(${distance * 2}deg)`;
       }
     }, { passive: false });
 
     document.addEventListener('touchend', (e) => {
       if (isRefreshing || startY === 0) return;
+      
       let distance = currentY - startY;
-      let pullDistance = Math.min(distance * 0.45, 100);
-      movingBody.classList.remove('dragging');
 
-      if (pullDistance >= 55) {
+      // अगर 60px से ज्यादा खींचा है, तो रिफ्रेश चालू
+      if (distance > 60) {
         isRefreshing = true;
-        movingBody.style.transform = `translateY(55px)`;
-        spinnerGap.style.height = `55px`;
-        spinnerGap.classList.add('spinning'); 
+        
+        // एनीमेशन क्लास लगाओ ताकि गोल घूमे
+        spinnerContainer.classList.add('spinning'); 
+        spinnerArrow.style.opacity = 1;
 
+        // 1.5 सेकंड बाद गायब
         setTimeout(() => {
-          spinnerGap.classList.remove('spinning');
-          movingBody.style.transform = `translateY(0)`;
-          spinnerGap.style.height = `0px`;
-          setTimeout(() => { spinnerArrow.style.opacity = 0; }, 200);
+          spinnerContainer.classList.remove('spinning');
+          spinnerArrow.style.opacity = 0;
+          spinnerArrow.style.transform = `translateY(0px) rotate(0deg)`;
           isRefreshing = false;
           startY = 0;
         }, 1500); 
       } else {
-        movingBody.style.transform = `translateY(0)`;
-        spinnerGap.style.height = `0px`;
+        // पूरा नहीं खींचा तो तुरंत वापस छुपा दो
         spinnerArrow.style.opacity = 0;
+        spinnerArrow.style.transform = `translateY(0px) rotate(0deg)`;
         startY = 0;
       }
     });
+
+    // PWA Service Worker को रजिस्टर करने का कोड (ताकि Install App आ सके)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js');
+      });
+    }
   </script>
 </body>
 </html>
+ 
