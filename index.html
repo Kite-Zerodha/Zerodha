@@ -12,9 +12,9 @@
 
   <style>
     :root {
-      /* ये वो जगह है जहाँ से स्क्रीन कटेगी (Search Analytics वाली लाइन के नीचे)। 
-         अगर रिफ्रेश बटन थोड़ा ऊपर या नीचे से निकल रहा हो, तो इस 220px को 200px या 240px करके सेट कर लेना। */
-      --split-point: 220px; 
+      /* ये वो जगह है जहाँ से स्क्रीन कटेगी (Search/Analytics वाली लाइन के ठीक नीचे)। 
+         ज़रूरत पड़े तो इस 225px को थोड़ा कम/ज़्यादा कर लेना */
+      --split-point: 225px; 
     }
 
     body, html {
@@ -26,7 +26,7 @@
       touch-action: none; 
     }
 
-    /* 1. ऊपर का हिस्सा (फिक्स रहेगा) */
+    /* 1. ऊपर का हिस्सा (Fixed Header - ये अपनी जगह से नहीं हिलेगा) */
     .fixed-header {
       position: absolute; top: 0; left: 0; width: 100%;
       height: var(--split-point);
@@ -37,7 +37,7 @@
       z-index: 10;
     }
 
-    /* 2. नीचे का हिस्सा (जो उंगली के साथ खिसकेगा) */
+    /* 2. नीचे का हिस्सा (Moving Body - जो उंगली के साथ खिसकेगा) */
     .moving-body {
       position: absolute; top: 0; left: 0; width: 100%; height: 100vh;
       background-image: url('screenshot.jpg'); 
@@ -45,33 +45,37 @@
       background-position: top center; 
       background-repeat: no-repeat;
       z-index: 5;
-      clip-path: inset(var(--split-point) 0 0 0); /* ऊपर के हिस्से को काट देगा */
+      /* ये लाइन ऊपर वाले हिस्से को काट कर गायब कर देगी ताकि वो हेडर के पीछे छुप जाए */
+      clip-path: inset(var(--split-point) 0 0 0); 
       transition: transform 0.3s ease-out;
     }
 
     .moving-body.dragging {
-      transition: none;
+      transition: none; /* खींचते टाइम स्मूथनेस के लिए transition बंद */
     }
 
-    /* 3. रिफ्रेश बटन की जगह (डार्क बैकग्राउंड वाला गैप) */
+    /* 3. रिफ्रेश बटन की जगह (डार्क बैकग्राउंड वाला गैप जो खींचने पर खुलेगा) */
     .spinner-gap {
       position: absolute;
       top: var(--split-point);
       left: 0; width: 100%;
       height: 0px; 
       display: flex; align-items: center; justify-content: center;
-      background-color: #13171a; /* डार्क कलर ताकि पीछे से असली लगे */
+      background-color: #13171a; /* डार्क कलर */
       z-index: 1; 
       overflow: hidden;
     }
 
-    /* बिल्कुल असली वाला पतला नीला एरो */
+    /* बिल्कुल असली वाला पतला, हल्का नीला एरो */
     .svg-icon {
-      width: 22px; height: 22px;
-      stroke: #4184f3; /* Kite का हल्का नीला रंग */
+      width: 24px; height: 24px;
+      stroke: #4184f3; /* Kite का नीला रंग */
       transform: rotate(0deg);
+      opacity: 0; /* शुरुआत में छुपा रहेगा, खींचने पर दिखेगा */
+      transition: opacity 0.2s;
     }
 
+    /* रिफ्रेश होने का गोल घूमने वाला इफ़ेक्ट */
     .spinning .svg-icon {
       animation: spin 0.8s linear infinite;
     }
@@ -84,8 +88,9 @@
 </head>
 <body>
 
-  <!-- रिफ्रेश वाला हिस्सा -->
+  <!-- रिफ्रेश वाला हिस्सा (गैप और एरो) -->
   <div class="spinner-gap" id="spinner-gap">
+    <!-- SVG Icon: एंड्रॉइड वाला पतला रिफ्रेश एरो -->
     <svg class="svg-icon" id="spinner-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
       <path d="M21 3v5h-5"></path>
@@ -107,7 +112,7 @@
     let currentY = 0;
     let isRefreshing = false;
     
-    const maxPull = 100; // कितना नीचे खींचा जा सकता है
+    const maxPull = 100; // उंगली से मैक्सिमम कितना नीचे खींचा जा सकता है
     const triggerPoint = 55; // कहाँ से रिफ्रेश चालू होगा
 
     document.addEventListener('touchstart', (e) => {
@@ -121,145 +126,17 @@
       let distance = currentY - startY;
 
       if (distance > 0) {
-        e.preventDefault();
-        movingBody.classList.add('dragging');
-        
-        let pullDistance = Math.min(distance * 0.4, maxPull);
-        
-        movingBody.style.transform = `translateY(${pullDistance}px)`;
-        spinnerGap.style.height = `${pullDistance}px`;
-        spinnerArrow.style.transform = `rotate(${distance * 1.5}deg)`;
-      }
-    }, { passive: false });
-
-    document.addEventListener('touchend', (e) => {
-      if (isRefreshing || startY === 0) return;
-      
-      let distance = currentY - startY;
-      let pullDistance = Math.min(distance * 0.4, maxPull);
-      movingBody.classList.remove('dragging');
-
-      if (pullDistance > triggerPoint) {
-        isRefreshing = true;
-        
-        movingBody.style.transform = `translateY(${triggerPoint}px)`;
-        spinnerGap.style.height = `${triggerPoint}px`;
-        spinnerGap.classList.add('spinning');
-
-        setTimeout(() => {
-          spinnerGap.classList.remove('spinning');
-          movingBody.style.transform = `translateY(0)`;
-          spinnerGap.style.height = `0px`;
-          isRefreshing = false;
-          startY = 0;
-        }, 1500); 
-      } else {
-        movingBody.style.transform = `translateY(0)`;
-        spinnerGap.style.height = `0px`;
-        startY = 0;
-      }
-    });
-  </script>
-</body>
-</html>
-      z-index: 10;
-    }
-
-    /* 2. नीचे का हिस्सा (Moving Body - जो नीचे खिसकेगा) */
-    .moving-body {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100vh;
-      background-image: url('screenshot.jpg'); 
-      background-size: 100vw 100vh;
-      background-position: top center; 
-      background-repeat: no-repeat;
-      z-index: 5;
-      /* ये जादुई लाइन ऊपर के 245px हिस्से को काट कर गायब कर देगी */
-      clip-path: inset(var(--split-point) 0 0 0); 
-      transition: transform 0.3s ease-out;
-    }
-
-    .moving-body.dragging {
-      transition: none; /* खींचते टाइम स्मूथनेस के लिए */
-    }
-
-    /* 3. रिफ्रेश एरो की जगह (दोनों हिस्सों के बीच का गैप) */
-    .spinner-gap {
-      position: absolute;
-      top: var(--split-point);
-      left: 0; width: 100%;
-      height: 0px; /* शुरुआत में गैप 0 रहेगा */
-      display: flex; align-items: center; justify-content: center;
-      z-index: 1; /* सबसे पीछे रहेगा */
-      overflow: hidden;
-    }
-
-    /* वीडियो जैसा पतला, हल्का नीला एरो */
-    .svg-icon {
-      width: 26px; height: 26px;
-      stroke: #4184f3; /* Kite का नीला रंग */
-      transform: rotate(0deg);
-    }
-
-    /* गोल घूमने वाला इफ़ेक्ट */
-    .spinning .svg-icon {
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
-</head>
-<body>
-
-  <!-- 1. रिफ्रेश एरो (जो गैप में दिखेगा) -->
-  <div class="spinner-gap" id="spinner-gap">
-    <svg class="svg-icon" id="spinner-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-      <path d="M3 3v5h5"></path>
-    </svg>
-  </div>
-
-  <!-- 2. नीचे का खिसकने वाला पेज -->
-  <div class="moving-body" id="moving-body"></div>
-
-  <!-- 3. ऊपर का फिक्स्ड हेडर (Nifty 50 से Search Bar तक) -->
-  <div class="fixed-header"></div>
-
-  <script>
-    const movingBody = document.getElementById('moving-body');
-    const spinnerGap = document.getElementById('spinner-gap');
-    const spinnerArrow = document.getElementById('spinner-arrow');
-    
-    let startY = 0;
-    let currentY = 0;
-    let isRefreshing = false;
-    
-    const maxPull = 110; 
-    const triggerPoint = 60; 
-
-    document.addEventListener('touchstart', (e) => {
-      if (isRefreshing) return;
-      startY = e.touches[0].clientY;
-    }, { passive: false });
-
-    document.addEventListener('touchmove', (e) => {
-      if (isRefreshing) return;
-      currentY = e.touches[0].clientY;
-      let distance = currentY - startY;
-
-      if (distance > 0) {
-        e.preventDefault();
+        e.preventDefault(); // वेबपेज को डिफ़ॉल्ट स्क्रॉल होने से रोकेगा
         movingBody.classList.add('dragging');
         
         let pullDistance = Math.min(distance * 0.45, maxPull);
         
-        // पेज को नीचे खिसकाओ और गैप को खोलो
+        // पेज खिसकाओ और गैप खोलो
         movingBody.style.transform = `translateY(${pullDistance}px)`;
         spinnerGap.style.height = `${pullDistance}px`;
         
-        // एरो को उंगली के हिसाब से घुमाओ
+        // एरो को दिखाओ और घुमाओ
+        spinnerArrow.style.opacity = 1;
         spinnerArrow.style.transform = `rotate(${distance * 1.5}deg)`;
       }
     }, { passive: false });
@@ -271,30 +148,43 @@
       let pullDistance = Math.min(distance * 0.45, maxPull);
       movingBody.classList.remove('dragging');
 
-      if (pullDistance > triggerPoint) {
+      if (pullDistance >= triggerPoint) {
         isRefreshing = true;
         
-        // रिफ्रेश होने की पोजीशन पर रोक दो
+        // रिफ्रेश होने की पोजीशन पर होल्ड करो
         movingBody.style.transform = `translateY(${triggerPoint}px)`;
         spinnerGap.style.height = `${triggerPoint}px`;
-        
-        spinnerGap.classList.add('spinning');
+        spinnerGap.classList.add('spinning'); // स्पिनिंग एनीमेशन चालू
 
-        // 1.5 सेकंड बाद वापस ऊपर
+        // 1.5 सेकंड बाद वापस छुपा दो
         setTimeout(() => {
           spinnerGap.classList.remove('spinning');
           movingBody.style.transform = `translateY(0)`;
           spinnerGap.style.height = `0px`;
+          
+          // वापस जाते टाइम एरो को छुपा दो
+          setTimeout(() => { spinnerArrow.style.opacity = 0; }, 300);
+          
           isRefreshing = false;
           startY = 0;
         }, 1500); 
       } else {
-        // पूरा नहीं खींचा तो वापस छुपा दो
+        // अगर पूरा नहीं खींचा तो तुरंत वापस
         movingBody.style.transform = `translateY(0)`;
         spinnerGap.style.height = `0px`;
+        spinnerArrow.style.opacity = 0;
         startY = 0;
       }
     });
+  </script>
+
+  <!-- PWA Service Worker (URL Bar हटाने के लिए ज़रूरी) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js');
+      });
+    }
   </script>
 </body>
 </html>
