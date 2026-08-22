@@ -1,7 +1,9 @@
 self.addEventListener('install', (e) => {
-  console.log('[Service Worker] Install');
+  self.skipWaiting();
 });
 
 self.addEventListener('fetch', (e) => {
-  // Chrome को खुश करने के लिए डमी फेच (Dummy Fetch)
+  e.respondWith(
+    fetch(e.request).catch(() => new Response('Offline'))
+  );
 });
