@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Trading App</title>
+  
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json"> <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background-color: #000;
+      overflow: hidden; /* Scroll disable karne ke liye */
+      overscroll-behavior-y: none; /* Native browser refresh rokne ke liye */
+      font-family: sans-serif;
+    }
+
+    .app-container {
+      position: relative;
+      height: 100%;
+      width: 100%;
+      /* Yahan apni image ka naam daalna */
+      background-image: url('screenshot.png'); 
+      background-size: cover;
+      background-position: top center;
+      background-repeat: no-repeat;
+    }
+
+    /* Video jaisa White & Blue Pull to Refresh Spinner */
+    .spinner-container {
+      position: absolute;
+      top: -60px; /* Initially chupa hua */
+      left: 50%;
+      transform: translateX(-50%);
+      width: 42px;
+      height: 42px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: top 0.2s ease-out;
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid transparent;
+      border-top-color: #1a73e8; /* Blue arrow color */
+      border-left-color: #1a73e8;
+      border-radius: 50%;
+    }
+
+    .refreshing .spinner {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="spinner-container" id="refresh-spinner">
+    <div class="spinner" id="spinner-icon"></div>
+  </div>
+
+  <div class="app-container"></div>
+
+  <script>
+    const spinnerContainer = document.getElementById('refresh-spinner');
+    const spinnerIcon = document.getElementById('spinner-icon');
+    let startY = 0;
+    let currentY = 0;
+    let isRefreshing = false;
+
+    // Jab screen touch ho
+    document.addEventListener('touchstart', (e) => {
+      if (!isRefreshing) startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    // Jab screen par neeche swipe karein
+    document.addEventListener('touchmove', (e) => {
+      if (!isRefreshing && startY > 0) {
+        currentY = e.touches[0].clientY;
+        let distance = currentY - startY;
+
+        if (distance > 0) {
+          let moveDown = Math.min(distance * 0.4, 70); // Upar se neeche aane ka effect
+          spinnerContainer.style.top = (moveDown - 40) + 'px';
+          spinnerIcon.style.transform = `rotate(${distance}deg)`; // Ghoomne ka effect
+        }
+      }
+    }, { passive: true });
+
+    // Jab touch chhod dein
+    document.addEventListener('touchend', (e) => {
+      if (!isRefreshing && startY > 0) {
+        let distance = currentY - startY;
+
+        if (distance > 90) { // Agar theek se neeche pull kiya hai
+          isRefreshing = true;
+          spinnerContainer.style.top = '25px'; // Animation hold karo
+          spinnerContainer.classList.add('refreshing');
+
+          // 2 second animation chalao fir wapas upar bhej do
+          setTimeout(() => {
+            spinnerContainer.classList.remove('refreshing');
+            spinnerContainer.style.top = '-60px';
+            isRefreshing = false;
+            startY = 0;
+          }, 2000);
+        } else {
+          // Agar poora pull nahi kiya, toh wapas upar chhupa do
+          spinnerContainer.style.top = '-60px';
+          startY = 0;
+        }
+      }
+    });
+  </script>
+</body>
+</html>
