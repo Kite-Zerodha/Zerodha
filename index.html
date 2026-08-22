@@ -4,29 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Kite App</title>
-  
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="manifest.json">
 
   <style>
     :root {
-      /* ये वो जगह है जहाँ से स्क्रीन कटेगी (Search/Analytics वाली लाइन के ठीक नीचे)। 
-         ज़रूरत पड़े तो इस 225px को थोड़ा कम/ज़्यादा कर लेना */
+      /* Search बार के नीचे का कट */
       --split-point: 225px; 
     }
 
     body, html {
       margin: 0; padding: 0; height: 100%; width: 100%;
-      background-color: #13171a; /* Kite का डार्क बैकग्राउंड */
+      background-color: #13171a; 
       overflow: hidden;
       overscroll-behavior-y: none;
       user-select: none;
       touch-action: none; 
     }
 
-    /* 1. ऊपर का हिस्सा (Fixed Header - ये अपनी जगह से नहीं हिलेगा) */
     .fixed-header {
       position: absolute; top: 0; left: 0; width: 100%;
       height: var(--split-point);
@@ -37,7 +30,6 @@
       z-index: 10;
     }
 
-    /* 2. नीचे का हिस्सा (Moving Body - जो उंगली के साथ खिसकेगा) */
     .moving-body {
       position: absolute; top: 0; left: 0; width: 100%; height: 100vh;
       background-image: url('screenshot.jpg'); 
@@ -45,37 +37,35 @@
       background-position: top center; 
       background-repeat: no-repeat;
       z-index: 5;
-      /* ये लाइन ऊपर वाले हिस्से को काट कर गायब कर देगी ताकि वो हेडर के पीछे छुप जाए */
       clip-path: inset(var(--split-point) 0 0 0); 
-      transition: transform 0.3s ease-out;
+      transition: transform 0.2s ease-out;
     }
 
     .moving-body.dragging {
-      transition: none; /* खींचते टाइम स्मूथनेस के लिए transition बंद */
+      transition: none;
     }
 
-    /* 3. रिफ्रेश बटन की जगह (डार्क बैकग्राउंड वाला गैप जो खींचने पर खुलेगा) */
+    /* डार्क बैकग्राउंड और रिफ्रेश स्पिनर */
     .spinner-gap {
       position: absolute;
       top: var(--split-point);
       left: 0; width: 100%;
       height: 0px; 
       display: flex; align-items: center; justify-content: center;
-      background-color: #13171a; /* डार्क कलर */
+      background-color: #13171a;
       z-index: 1; 
       overflow: hidden;
     }
 
-    /* बिल्कुल असली वाला पतला, हल्का नीला एरो */
+    /* Android वाला पतला नीला तीर */
     .svg-icon {
       width: 24px; height: 24px;
-      stroke: #4184f3; /* Kite का नीला रंग */
+      stroke: #4184f3; 
       transform: rotate(0deg);
-      opacity: 0; /* शुरुआत में छुपा रहेगा, खींचने पर दिखेगा */
+      opacity: 0;
       transition: opacity 0.2s;
     }
 
-    /* रिफ्रेश होने का गोल घूमने वाला इफ़ेक्ट */
     .spinning .svg-icon {
       animation: spin 0.8s linear infinite;
     }
@@ -88,19 +78,14 @@
 </head>
 <body>
 
-  <!-- रिफ्रेश वाला हिस्सा (गैप और एरो) -->
   <div class="spinner-gap" id="spinner-gap">
-    <!-- SVG Icon: एंड्रॉइड वाला पतला रिफ्रेश एरो -->
     <svg class="svg-icon" id="spinner-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
       <path d="M21 3v5h-5"></path>
     </svg>
   </div>
 
-  <!-- नीचे का खिसकने वाला पेज -->
   <div class="moving-body" id="moving-body"></div>
-
-  <!-- ऊपर का फिक्स्ड हेडर -->
   <div class="fixed-header"></div>
 
   <script>
@@ -112,12 +97,8 @@
     let currentY = 0;
     let isRefreshing = false;
     
-    const maxPull = 100; // उंगली से मैक्सिमम कितना नीचे खींचा जा सकता है
-    const triggerPoint = 55; // कहाँ से रिफ्रेश चालू होगा
-
     document.addEventListener('touchstart', (e) => {
-      if (isRefreshing) return;
-      startY = e.touches[0].clientY;
+      if (!isRefreshing) startY = e.touches[0].clientY;
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
@@ -126,16 +107,12 @@
       let distance = currentY - startY;
 
       if (distance > 0) {
-        e.preventDefault(); // वेबपेज को डिफ़ॉल्ट स्क्रॉल होने से रोकेगा
+        e.preventDefault();
         movingBody.classList.add('dragging');
+        let pullDistance = Math.min(distance * 0.45, 100);
         
-        let pullDistance = Math.min(distance * 0.45, maxPull);
-        
-        // पेज खिसकाओ और गैप खोलो
         movingBody.style.transform = `translateY(${pullDistance}px)`;
         spinnerGap.style.height = `${pullDistance}px`;
-        
-        // एरो को दिखाओ और घुमाओ
         spinnerArrow.style.opacity = 1;
         spinnerArrow.style.transform = `rotate(${distance * 1.5}deg)`;
       }
@@ -143,48 +120,31 @@
 
     document.addEventListener('touchend', (e) => {
       if (isRefreshing || startY === 0) return;
-      
       let distance = currentY - startY;
-      let pullDistance = Math.min(distance * 0.45, maxPull);
+      let pullDistance = Math.min(distance * 0.45, 100);
       movingBody.classList.remove('dragging');
 
-      if (pullDistance >= triggerPoint) {
+      if (pullDistance >= 55) {
         isRefreshing = true;
-        
-        // रिफ्रेश होने की पोजीशन पर होल्ड करो
-        movingBody.style.transform = `translateY(${triggerPoint}px)`;
-        spinnerGap.style.height = `${triggerPoint}px`;
-        spinnerGap.classList.add('spinning'); // स्पिनिंग एनीमेशन चालू
+        movingBody.style.transform = `translateY(55px)`;
+        spinnerGap.style.height = `55px`;
+        spinnerGap.classList.add('spinning'); 
 
-        // 1.5 सेकंड बाद वापस छुपा दो
         setTimeout(() => {
           spinnerGap.classList.remove('spinning');
           movingBody.style.transform = `translateY(0)`;
           spinnerGap.style.height = `0px`;
-          
-          // वापस जाते टाइम एरो को छुपा दो
-          setTimeout(() => { spinnerArrow.style.opacity = 0; }, 300);
-          
+          setTimeout(() => { spinnerArrow.style.opacity = 0; }, 200);
           isRefreshing = false;
           startY = 0;
         }, 1500); 
       } else {
-        // अगर पूरा नहीं खींचा तो तुरंत वापस
         movingBody.style.transform = `translateY(0)`;
         spinnerGap.style.height = `0px`;
         spinnerArrow.style.opacity = 0;
         startY = 0;
       }
     });
-  </script>
-
-  <!-- PWA Service Worker (URL Bar हटाने के लिए ज़रूरी) -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js');
-      });
-    }
   </script>
 </body>
 </html>
