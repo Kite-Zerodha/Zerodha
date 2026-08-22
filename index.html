@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Kite</title>
+  <title>Kite App</title>
   
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,28 +12,156 @@
 
   <style>
     :root {
-      /* ये लाइन तय करेगी कि पेज कहाँ से टूटेगा (Search bar के ठीक नीचे)। 
-         अगर ये गलत जगह से कट रहा हो, तो 245px को थोड़ा कम-ज़्यादा (जैसे 220px या 260px) करके देख लेना */
-      --split-point: 245px; 
+      /* ये वो जगह है जहाँ से स्क्रीन कटेगी (Search Analytics वाली लाइन के नीचे)। 
+         अगर रिफ्रेश बटन थोड़ा ऊपर या नीचे से निकल रहा हो, तो इस 220px को 200px या 240px करके सेट कर लेना। */
+      --split-point: 220px; 
     }
 
     body, html {
       margin: 0; padding: 0; height: 100%; width: 100%;
       background-color: #13171a; /* Kite का डार्क बैकग्राउंड */
       overflow: hidden;
-      overscroll-behavior-y: none; /* क्रोम का अपना रिफ्रेश बंद */
+      overscroll-behavior-y: none;
       user-select: none;
       touch-action: none; 
     }
 
-    /* 1. ऊपर का हिस्सा (Fixed Header) */
+    /* 1. ऊपर का हिस्सा (फिक्स रहेगा) */
     .fixed-header {
       position: absolute; top: 0; left: 0; width: 100%;
       height: var(--split-point);
       background-image: url('screenshot.jpg'); 
-      background-size: 100vw 100vh; /* इससे फोटो स्क्रीन पर 100% फिट बैठेगी, पिचकेगी नहीं */
+      background-size: 100vw 100vh;
       background-position: top center; 
       background-repeat: no-repeat;
+      z-index: 10;
+    }
+
+    /* 2. नीचे का हिस्सा (जो उंगली के साथ खिसकेगा) */
+    .moving-body {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100vh;
+      background-image: url('screenshot.jpg'); 
+      background-size: 100vw 100vh;
+      background-position: top center; 
+      background-repeat: no-repeat;
+      z-index: 5;
+      clip-path: inset(var(--split-point) 0 0 0); /* ऊपर के हिस्से को काट देगा */
+      transition: transform 0.3s ease-out;
+    }
+
+    .moving-body.dragging {
+      transition: none;
+    }
+
+    /* 3. रिफ्रेश बटन की जगह (डार्क बैकग्राउंड वाला गैप) */
+    .spinner-gap {
+      position: absolute;
+      top: var(--split-point);
+      left: 0; width: 100%;
+      height: 0px; 
+      display: flex; align-items: center; justify-content: center;
+      background-color: #13171a; /* डार्क कलर ताकि पीछे से असली लगे */
+      z-index: 1; 
+      overflow: hidden;
+    }
+
+    /* बिल्कुल असली वाला पतला नीला एरो */
+    .svg-icon {
+      width: 22px; height: 22px;
+      stroke: #4184f3; /* Kite का हल्का नीला रंग */
+      transform: rotate(0deg);
+    }
+
+    .spinning .svg-icon {
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- रिफ्रेश वाला हिस्सा -->
+  <div class="spinner-gap" id="spinner-gap">
+    <svg class="svg-icon" id="spinner-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+      <path d="M21 3v5h-5"></path>
+    </svg>
+  </div>
+
+  <!-- नीचे का खिसकने वाला पेज -->
+  <div class="moving-body" id="moving-body"></div>
+
+  <!-- ऊपर का फिक्स्ड हेडर -->
+  <div class="fixed-header"></div>
+
+  <script>
+    const movingBody = document.getElementById('moving-body');
+    const spinnerGap = document.getElementById('spinner-gap');
+    const spinnerArrow = document.getElementById('spinner-arrow');
+    
+    let startY = 0;
+    let currentY = 0;
+    let isRefreshing = false;
+    
+    const maxPull = 100; // कितना नीचे खींचा जा सकता है
+    const triggerPoint = 55; // कहाँ से रिफ्रेश चालू होगा
+
+    document.addEventListener('touchstart', (e) => {
+      if (isRefreshing) return;
+      startY = e.touches[0].clientY;
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (isRefreshing) return;
+      currentY = e.touches[0].clientY;
+      let distance = currentY - startY;
+
+      if (distance > 0) {
+        e.preventDefault();
+        movingBody.classList.add('dragging');
+        
+        let pullDistance = Math.min(distance * 0.4, maxPull);
+        
+        movingBody.style.transform = `translateY(${pullDistance}px)`;
+        spinnerGap.style.height = `${pullDistance}px`;
+        spinnerArrow.style.transform = `rotate(${distance * 1.5}deg)`;
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', (e) => {
+      if (isRefreshing || startY === 0) return;
+      
+      let distance = currentY - startY;
+      let pullDistance = Math.min(distance * 0.4, maxPull);
+      movingBody.classList.remove('dragging');
+
+      if (pullDistance > triggerPoint) {
+        isRefreshing = true;
+        
+        movingBody.style.transform = `translateY(${triggerPoint}px)`;
+        spinnerGap.style.height = `${triggerPoint}px`;
+        spinnerGap.classList.add('spinning');
+
+        setTimeout(() => {
+          spinnerGap.classList.remove('spinning');
+          movingBody.style.transform = `translateY(0)`;
+          spinnerGap.style.height = `0px`;
+          isRefreshing = false;
+          startY = 0;
+        }, 1500); 
+      } else {
+        movingBody.style.transform = `translateY(0)`;
+        spinnerGap.style.height = `0px`;
+        startY = 0;
+      }
+    });
+  </script>
+</body>
+</html>
       z-index: 10;
     }
 
