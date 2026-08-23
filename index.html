@@ -9,14 +9,13 @@
   <style>
     body, html {
       margin: 0; padding: 0; height: 100%; width: 100%;
-      background-color: #13171a; /* Kite Dark Theme */
+      background-color: #13171a; 
       overflow: hidden;
       overscroll-behavior-y: none;
       user-select: none;
       touch-action: none; 
     }
 
-    /* पीछे का पूरा स्क्रीनशॉट जो अपनी जगह फिक्स रहेगा */
     .app-background {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background-image: url('screenshot.jpg'); 
@@ -26,25 +25,22 @@
       z-index: 1;
     }
 
-    /* रिफ्रेश स्पिनर रखने की जगह (Holdings टैब के नीचे - 130px) */
     .spinner-container {
       position: absolute;
       top: 130px; 
       left: 0; width: 100%;
       display: flex; align-items: center; justify-content: center;
       z-index: 10; 
-      pointer-events: none; /* ताकि नीचे के बटन दब सकें */
+      pointer-events: none; 
     }
 
-    /* खुला हुआ मोटा नीला तीर (बिना किसी डिब्बे के) */
     .svg-icon {
       width: 26px; height: 26px;
-      stroke: #4184f3; /* Kite Blue */
-      opacity: 0; /* शुरू में छुपा रहेगा */
+      stroke: #4184f3; 
+      opacity: 0; 
       transform: translateY(0px) rotate(0deg);
     }
 
-    /* गोल घूमने का एनीमेशन */
     .spinning .svg-icon {
       animation: spin 0.8s linear infinite;
     }
@@ -53,14 +49,30 @@
       0% { transform: translateY(30px) rotate(0deg); }
       100% { transform: translateY(30px) rotate(360deg); }
     }
+
+    /* ऑटोमैटिक इंस्टॉल बटन का डिज़ाइन */
+    #install-btn {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #4184f3;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      z-index: 100;
+      display: none; /* शुरू में छुपा रहेगा, क्रोम के पास करते ही दिखेगा */
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
   </style>
 </head>
 <body>
 
-  <!-- मेन स्क्रीनशॉट -->
   <div class="app-background"></div>
 
-  <!-- रिफ्रेश वाला तीर -->
   <div class="spinner-container" id="spinner-container">
     <svg class="svg-icon" id="spinner-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
@@ -68,7 +80,11 @@
     </svg>
   </div>
 
+  <!-- इंस्टॉल बटन -->
+  <button id="install-btn">Install App</button>
+
   <script>
+    // --- रिफ्रेश एनीमेशन का लॉजिक ---
     const spinnerContainer = document.getElementById('spinner-container');
     const spinnerArrow = document.getElementById('spinner-arrow');
     
@@ -85,14 +101,9 @@
       currentY = e.touches[0].clientY;
       let distance = currentY - startY;
 
-      // अगर नीचे की तरफ खींच रहे हैं
       if (distance > 0) {
         e.preventDefault();
-        
-        // तीर थोड़ा नीचे खिसकेगा (Max 30px)
         let pullDistance = Math.min(distance * 0.3, 30); 
-        
-        // उंगली के हिसाब से तीर दिखेगा और घूमेगा
         spinnerArrow.style.opacity = Math.min(distance / 60, 1);
         spinnerArrow.style.transform = `translateY(${pullDistance}px) rotate(${distance * 2}deg)`;
       }
@@ -100,18 +111,13 @@
 
     document.addEventListener('touchend', (e) => {
       if (isRefreshing || startY === 0) return;
-      
       let distance = currentY - startY;
 
-      // अगर 60px से ज्यादा खींचा है, तो रिफ्रेश चालू
       if (distance > 60) {
         isRefreshing = true;
-        
-        // एनीमेशन क्लास लगाओ ताकि गोल घूमे
         spinnerContainer.classList.add('spinning'); 
         spinnerArrow.style.opacity = 1;
 
-        // 1.5 सेकंड बाद गायब
         setTimeout(() => {
           spinnerContainer.classList.remove('spinning');
           spinnerArrow.style.opacity = 0;
@@ -120,20 +126,45 @@
           startY = 0;
         }, 1500); 
       } else {
-        // पूरा नहीं खींचा तो तुरंत वापस छुपा दो
         spinnerArrow.style.opacity = 0;
         spinnerArrow.style.transform = `translateY(0px) rotate(0deg)`;
         startY = 0;
       }
     });
 
-    // PWA Service Worker को रजिस्टर करने का कोड (ताकि Install App आ सके)
+    // --- ऑटोमैटिक PWA इंस्टॉल का लॉजिक ---
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js');
       });
     }
+
+    let deferredPrompt;
+    const installBtn = document.getElementById('install-btn');
+
+    // क्रोम जब चेक कर लेगा कि वेबसाइट ऐप बनने लायक है, तब ये इवेंट चलेगा
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault(); // क्रोम के डिफॉल्ट पॉप-अप को रोको
+      deferredPrompt = e; // इवेंट को सेव करो
+      installBtn.style.display = 'block'; // अपना इंस्टॉल बटन दिखाओ
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt(); // क्रोम का असली इंस्टॉल पॉप-अप दिखाओ
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('App Installed');
+          installBtn.style.display = 'none'; // इंस्टॉल होने के बाद बटन छुपा दो
+        }
+        deferredPrompt = null;
+      }
+    });
+
+    // अगर पहले से इंस्टॉल है, तो बटन मत दिखाओ
+    window.addEventListener('appinstalled', () => {
+      installBtn.style.display = 'none';
+    });
   </script>
 </body>
 </html>
- 
