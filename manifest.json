@@ -1,7 +1,7 @@
 {
   "name": "Kite",
   "short_name": "Kite",
-  "display": "standalone",
+  "display": "fullscreen", 
   "start_url": ".",
   "background_color": "#13171a",
   "theme_color": "#13171a",
