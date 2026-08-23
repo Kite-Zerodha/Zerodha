@@ -1,18 +1,18 @@
 {
-  "name": "Kite",
+  "name": "Kite App",
   "short_name": "Kite",
   "display": "standalone",
-  "start_url": "index.html",
+  "start_url": "./index.html",
   "background_color": "#13171a",
   "theme_color": "#13171a",
   "icons": [
     {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/GitHub_Invertocat_Logo.svg/192px-GitHub_Invertocat_Logo.svg.png",
+      "src": "https://via.placeholder.com/192.png?text=K",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/GitHub_Invertocat_Logo.svg/512px-GitHub_Invertocat_Logo.svg.png",
+      "src": "https://via.placeholder.com/512.png?text=K",
       "sizes": "512x512",
       "type": "image/png"
     }
