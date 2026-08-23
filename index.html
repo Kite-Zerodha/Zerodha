@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
   <title>Kite</title>
   <link rel="manifest" href="manifest.json">
 
@@ -19,23 +18,18 @@
 
     .app-background {
       position: absolute; 
-      /* यहाँ से फोटो 40px ऊपर खिसकेगी ताकि पुराना टाइम छुप जाए */
-      top: -40px; 
-      left: 0; 
-      /* चौड़ाई 100% रहेगी, जिससे फोटो पिचकेगी नहीं */
-      width: 100vw; 
-      /* ऊँचाई को फोन के स्क्रीनशॉट के असली साइज के हिसाब से रखा है */
-      height: 100vh;
+      top: 0; left: 0; 
+      width: 100vw; height: 100vh;
       background-image: url('screenshot.jpg'); 
-      background-size: 100vw auto; 
-      background-position: top center; 
+      /* अब फुलस्क्रीन होने के बाद फोटो 100% फिट बैठेगी, बिना पिचके और बिना कटे */
+      background-size: 100% 100%; 
+      background-position: center; 
       background-repeat: no-repeat;
       z-index: 1;
     }
 
     .spinner-container {
       position: absolute;
-      /* इसे 130px से बढ़ाकर 175px कर दिया है (Holdings के ठीक नीचे) */
       top: 175px; 
       left: 0; width: 100%;
       display: flex; align-items: center; justify-content: center;
@@ -82,6 +76,13 @@
     
     document.addEventListener('touchstart', (e) => {
       if (!isRefreshing) startY = e.touches[0].clientY;
+
+      // ये रही वो जादुई लाइन जो स्क्रीन पर टच करते ही काले गैप को उड़ा देगी
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.log("Fullscreen request failed", err);
+        });
+      }
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
@@ -139,4 +140,3 @@
   </script>
 </body>
 </html>
- 
